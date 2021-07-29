@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-deployment  # could be any name
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:             # Blueprint for pod
+    metadata:           # See image configuration in dockerhub
+      labels:
+        app: mongodb
+      spec:
+        containers:
+          - name: mongodb
+            image: mongo  # pull the latest image
+            ports:
+            - containerPort: 27017 # default port, can check in dockerhub
+            env:                   # environment variables (create Secret in K8s, not in the repo)
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret # Secret name in mongo-secret.yaml
+                  key: mongo-root-username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret # Secret name in mongo-secret.yaml
+                  key: mongo-root-password
+--- # document separation, a new yaml document
+# Deployment & Service in 1 file as they belog together
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb  # this selector will find the label in the deployment to attach to the Pods
+  ports:
+    - protocol: TCP       # the following port could be different
+      port: 27017         # expose service port
+      targetPort: 27017   # containerPort of deployment

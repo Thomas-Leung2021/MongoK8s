@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  labels:
+    app: mongo-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:             # Blueprint for pod
+    metadata:           # See image configuration in dockerhub
+      labels:
+        app: mongo-express
+      spec:
+        containers:
+          - name: mongo-express
+            image: mongo-express
+            ports:      # you could technically open multiple ports
+            - containerPort: 8081 
+            env:        # Provide credential to authenticate the connection
+            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret # Secret name in mongo-secret.yaml
+                  key: mongo-root-username
+            - name: MONGO_CONFIG_MONGODB_ADMINPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret # Secret name in mongo-secret.yaml
+                  key: mongo-root-password
+            - name: ME_CONFIG_MONGODB_SERVER # Endpoint to which databasee to connect, need MongoDB Address/ Internal Service
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-configmap
+                  key: database_url     # the key is in the mongo-configmap.yaml
+--- # document separation, a new yaml document
+# Deployment & Service in 1 file as they belog together
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-express-service
+spec:
+  selector:
+    app: mongo-express  # this selector will find the label in the deployment to attach to the Pods
+  type: LoadBalancer    # LoadBalancer enable external service, it assigns service an external IP address and accepts external request
+  ports:                # (LoadBalancer is a bad name as internal service also acts as a loadbalancer)
+    - protocol: TCP     # the following port could be different
+      port: 8081        # expose service port
+      targetPort: 8081  # containerPort of deployment
+      nodePort: 30000   # Port for external IP address that can be access from browser (must be between 30000-32767)
+
+## The service will have a type LoadBalancer
+## Internal Service or Cluster IP is DEFAULT
+## ClusterIP will give service an internal address (CLUSTER-IP)
+## LoadBalancer will give the service an interal and external ip address
